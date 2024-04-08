@@ -1,20 +1,33 @@
-use pulldown_cmark::{Options, Parser};
-// This is a simple hello world program in Rust
-fn main() {
-    let markdown_input = "Hello world, this is a ~~complicated~~ *very simple* example.";
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use pulldown_cmark::{html, Options, Parser};
 
-    // Set up options and parser. Strikethroughs are not part of the CommonMark standard
-    // and we therefore must enable it explicitly.
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    let parser = Parser::new_ext(markdown_input, options);
-
-    // Write to String buffer.
+#[get("/")]
+async fn markdown() -> impl Responder {
+    let markdown_input = "# Hello, Markdown!";
+    let parser = Parser::new_ext(markdown_input, Options::all());
     let mut html_output = String::new();
-    pulldown_cmark::html::push_html(&mut html_output, parser);
+    html::push_html(&mut html_output, parser);
+    HttpResponse::Ok().body(html_output)
+}
 
-    // Check that the output is what we expected.
-    let expected_html =
-        "<p>Hello world, this is a <del>complicated</del> <em>very simple</em> example.</p>\n";
-    assert_eq!(expected_html, &html_output);
+#[post("/echo")]
+async fn echo(req_body: String) -> impl Responder {
+    HttpResponse::Ok().body(req_body)
+}
+
+async fn manual_hello() -> impl Responder {
+    HttpResponse::Ok().body("Hey there!")
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .service(markdown)
+            .service(echo)
+            .route("/hey", web::get().to(manual_hello))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
